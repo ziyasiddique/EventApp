@@ -1,4 +1,5 @@
-﻿@model IEnumerable<EventApp.Models.Event>
+﻿<!-- Views/Event/Index.cshtml -->
+@model IEnumerable<EventApp.Models.Event>
 
 @{
     ViewData["Title"] = "Events List";
@@ -14,6 +15,7 @@
             <th>Title</th>
             <th>Description</th>
             <th>Image</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -31,6 +33,13 @@
                     {
                         <span>No Image</span>
                     }
+                </td>
+                <td>
+                    <a class="btn btn-info" href="@Url.Action("Details", new { id = ev.Id })">Details</a>
+                    <a class="btn btn-warning" href="@Url.Action("Edit", new { id = ev.Id })">Edit</a>
+                    <form asp-action="Delete" asp-route-id="@ev.Id" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
                 </td>
             </tr>
         }
