@@ -2,6 +2,7 @@
 using EventApp.Models;
 using EventApp.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace EventApp.Controllers
 {
@@ -16,10 +17,17 @@ namespace EventApp.Controllers
             _webHostEnvironment = webHostEnvironment;
         }
 
-        // Index action to list all events
-        public IActionResult Index()
+        // GET: Event/Index
+        public async Task<IActionResult> Index()
         {
-            var events = _context.Events.ToList();
+            // Check if user is logged in
+            if (HttpContext.Session.GetString("User") == null)
+            {
+                return RedirectToAction("Login", "Home");
+            }
+
+            // Fetch and return the list of events
+            var events = await _context.Events.ToListAsync();
             return View(events);
         }
 
