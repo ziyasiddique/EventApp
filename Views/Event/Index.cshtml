@@ -1,0 +1,38 @@
+﻿@model IEnumerable<EventApp.Models.Event>
+
+@{
+    ViewData["Title"] = "Events List";
+}
+
+<h1>Events</h1>
+
+<a class="btn btn-primary" href="@Url.Action("AddEvent")">Add Event</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Image</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var ev in Model)
+        {
+            <tr>
+                <td>@ev.Title</td>
+                <td>@ev.Description</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(ev.ImagePath))
+                    {
+                        <img src="@ev.ImagePath" alt="Event Image" width="100" />
+                    }
+                    else
+                    {
+                        <span>No Image</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
