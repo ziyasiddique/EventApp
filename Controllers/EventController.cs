@@ -4,184 +4,264 @@ using EventApp.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace EventApp.Controllers
+public class EventController : Controller
 {
-    public class EventController : Controller
+    private readonly EventDbContext _context;
+    private readonly IWebHostEnvironment _webHostEnvironment;
+    private readonly ILogger<EventController> logger;
+
+    public EventController(EventDbContext context, IWebHostEnvironment webHostEnvironment, ILogger<EventController> logger)
     {
-        private readonly EventDbContext _context;
-        private readonly IWebHostEnvironment _webHostEnvironment;
+        _context = context;
+        _webHostEnvironment = webHostEnvironment;
+        this.logger = logger;
+    }
 
-        public EventController(EventDbContext context, IWebHostEnvironment webHostEnvironment)
+    // GET: Event/Index
+    public async Task<IActionResult> Index()
+    {
+        if (HttpContext.Session.GetString("User") == null)
         {
-            _context = context;
-            _webHostEnvironment = webHostEnvironment;
+            return RedirectToAction("Login", "Home");
         }
 
-        // GET: Event/Index
-        public async Task<IActionResult> Index()
+        var events = await _context.Events.ToListAsync();
+        return View(events);
+    }
+
+    // GET: AddEvent
+    public IActionResult AddEvent()
+    {
+        return View();
+    }
+
+    // POST: AddEvent
+    [HttpPost]
+    public async Task<IActionResult> AddEvent(EventViewModel model)
+    {
+        if (model.OptionalImages != null && model.OptionalImages.Any())
         {
-            // Check if user is logged in
-            if (HttpContext.Session.GetString("User") == null)
+            foreach (var optionalImage in model.OptionalImages)
             {
-                return RedirectToAction("Login", "Home");
+                Console.WriteLine($"Optional Image Found: {optionalImage?.FileName}");
             }
-
-            // Fetch and return the list of events
-            var events = await _context.Events.ToListAsync();
-            return View(events);
+        }
+        else
+        {
+            Console.WriteLine("No Optional Images Found");
         }
 
-        // GET: AddEvent action to show the form
-        public IActionResult AddEvent()
+        if (ModelState.IsValid)
         {
-            return View();
-        }
-
-        // POST: AddEvent action to handle form submission
-        [HttpPost]
-        public async Task<IActionResult> AddEvent(EventViewModel model)
-        {
-            if (ModelState.IsValid)
+            var eventEntity = new Event
             {
-                var eventEntity = new Event
-                {
-                    Title = model.Title,
-                    Description = model.Description
-                };
-
-                // Handle image upload
-                if (model.Image != null)
-                {
-                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images");
-                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + model.Image.FileName;
-                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await model.Image.CopyToAsync(fileStream);
-                    }
-                    eventEntity.ImagePath = "/images/" + uniqueFileName;
-                }
-
-                // Save event to the database
-                _context.Events.Add(eventEntity);
-                await _context.SaveChangesAsync();
-
-                // Redirect to the Index page
-                return RedirectToAction(nameof(Index));
-            }
-            return View(model);
-        }
-
-        // GET: Details action to view event details
-        public async Task<IActionResult> Details(int id)
-        {
-            var eventEntity = await _context.Events.FindAsync(id);
-            if (eventEntity == null)
-            {
-                return NotFound();
-            }
-            return View(eventEntity);
-        }
-
-        // Controllers/EventController.cs
-
-        // GET: Edit action to show the edit form
-        public async Task<IActionResult> Edit(int id)
-        {
-            var eventEntity = await _context.Events.FindAsync(id);
-            if (eventEntity == null)
-            {
-                return NotFound();
-            }
-
-            var viewModel = new EventViewModel
-            {
-                Id = eventEntity.Id,
-                Title = eventEntity.Title,
-                Description = eventEntity.Description,
-                // No need to set Image if it's optional
+                Title = model.Title,
+                Description = model.Description
             };
 
-            return View(viewModel);
-        }
-
-        // POST: Edit action to handle form submission
-        [HttpPost]
-        public async Task<IActionResult> Edit(int id, EventViewModel model)
-        {
-            if (id != model.Id)
+            // Handle main image upload
+            if (model.Image != null)
             {
-                return BadRequest();
+                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images");
+                string uniqueFileName = Guid.NewGuid().ToString() + "_" + model.Image.FileName;
+                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await model.Image.CopyToAsync(fileStream);
+                }
+                eventEntity.ImagePath = "/images/" + uniqueFileName;
             }
 
-            if (ModelState.IsValid)
+            // Handle optional images upload
+            if (model.OptionalImages != null && model.OptionalImages.Any())
             {
-                var eventEntity = await _context.Events.FindAsync(id);
-                if (eventEntity == null)
-                {
-                    return NotFound();
-                }
+                eventEntity.OptionalImages = new List<OptionalImage>();
 
-                // Update title if changed
-                if (!string.IsNullOrWhiteSpace(model.Title))
+                foreach (var optionalImage in model.OptionalImages)
                 {
-                    eventEntity.Title = model.Title;
-                }
-
-                // Update description if changed
-                if (!string.IsNullOrWhiteSpace(model.Description))
-                {
-                    eventEntity.Description = model.Description;
-                }
-
-                // Handle image upload if a new image is provided
-                if (model.Image != null)
-                {
-                    // Delete the old image file if needed
-                    if (!string.IsNullOrEmpty(eventEntity.ImagePath))
+                    if (optionalImage != null)
                     {
-                        string oldImagePath = Path.Combine(_webHostEnvironment.WebRootPath, eventEntity.ImagePath.TrimStart('/'));
-                        if (System.IO.File.Exists(oldImagePath))
+                        string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "optional");
+                        string uniqueFileName = Guid.NewGuid().ToString() + "_" + optionalImage.FileName;
+                        string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                        using (var fileStream = new FileStream(filePath, FileMode.Create))
                         {
-                            System.IO.File.Delete(oldImagePath);
+                            await optionalImage.CopyToAsync(fileStream);
                         }
-                    }
+                        eventEntity.OptionalImages.Add(new OptionalImage
+                        {
+                            ImagePath = "/images/optional/" + uniqueFileName,
+                            EventId = eventEntity.Id
+                        });
 
-                    // Save the new image
-                    string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images");
-                    string uniqueFileName = Guid.NewGuid().ToString() + "_" + model.Image.FileName;
-                    string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                    using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    {
-                        await model.Image.CopyToAsync(fileStream);
+                        // Log the file path
+                        Console.WriteLine($"Optional Image Path: /images/optional/{uniqueFileName}");
                     }
-                    eventEntity.ImagePath = "/images/" + uniqueFileName;
                 }
-
-                _context.Update(eventEntity);
-                await _context.SaveChangesAsync();
-
-                return RedirectToAction(nameof(Index));
             }
 
-            // If we got this far, something failed, redisplay form
-            return View(model);
-        }
-
-        // POST: Delete action to delete an event
-        [HttpPost]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var eventEntity = await _context.Events.FindAsync(id);
-            if (eventEntity == null)
-            {
-                return NotFound();
-            }
-
-            _context.Events.Remove(eventEntity);
+            _context.Events.Add(eventEntity);
             await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Index));
         }
+
+        return View(model);
+    }
+
+    // GET: Event/Details
+    public async Task<IActionResult> Details(int id)
+    {
+        var eventEntity = await _context.Events
+            .Include(e => e.OptionalImages) // Include the related OptionalImages
+            .AsNoTracking()
+            .SingleOrDefaultAsync(e => e.Id == id);
+
+        if (eventEntity == null)
+        {
+            return NotFound();
+        }
+
+        var viewModel = new EventDetailsViewModel
+        {
+            Event = eventEntity,
+            OptionalImages = eventEntity.OptionalImages
+        };
+
+        return View(viewModel);
+    }
+
+    // GET: Edit
+    public async Task<IActionResult> Edit(int id)
+    {
+        var eventEntity = await _context.Events.FindAsync(id);
+        if (eventEntity == null)
+        {
+            return NotFound();
+        }
+
+        var viewModel = new EventViewModel
+        {
+            Id = eventEntity.Id,
+            Title = eventEntity.Title,
+            Description = eventEntity.Description,
+            // No need to set Image if it's optional
+        };
+
+        return View(viewModel);
+    }
+
+    // POST: Edit
+    [HttpPost]
+    public async Task<IActionResult> Edit(int id, EventViewModel model)
+    {
+        if (id != model.Id)
+        {
+            return BadRequest();
+        }
+
+        if (ModelState.IsValid)
+        {
+            var eventEntity = await _context.Events.FindAsync(id);
+            if (eventEntity == null)
+            {
+                return NotFound();
+            }
+
+            // Update title and description if changed
+            if (!string.IsNullOrWhiteSpace(model.Title))
+            {
+                eventEntity.Title = model.Title;
+            }
+
+            if (!string.IsNullOrWhiteSpace(model.Description))
+            {
+                eventEntity.Description = model.Description;
+            }
+
+            // Handle image upload if a new image is provided
+            if (model.Image != null)
+            {
+                // Delete old image if it exists
+                if (!string.IsNullOrEmpty(eventEntity.ImagePath))
+                {
+                    string oldImagePath = Path.Combine(_webHostEnvironment.WebRootPath, eventEntity.ImagePath.TrimStart('/'));
+
+                    // Make sure the file exists before attempting to delete it
+                    if (System.IO.File.Exists(oldImagePath))
+                    {
+                        System.IO.File.Delete(oldImagePath);
+                    }
+                }
+
+                // Upload new image
+                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images");
+                string uniqueFileName = Guid.NewGuid().ToString() + "_" + model.Image.FileName;
+                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await model.Image.CopyToAsync(fileStream);
+                }
+
+                // Update the image path in the entity
+                eventEntity.ImagePath = "/images/" + uniqueFileName;
+            }
+
+            // Handle optional images upload
+            if (model.OptionalImages != null && model.OptionalImages.Any())
+            {
+                foreach (var optionalImage in model.OptionalImages)
+                {
+                    if (optionalImage != null)
+                    {
+                        string optionalUploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images", "optional");
+                        string uniqueFileName = Guid.NewGuid().ToString() + "_" + optionalImage.FileName;
+                        string optionalFilePath = Path.Combine(optionalUploadsFolder, uniqueFileName);
+
+                        using (var fileStream = new FileStream(optionalFilePath, FileMode.Create))
+                        {
+                            await optionalImage.CopyToAsync(fileStream);
+                        }
+
+                        var newOptionalImage = new OptionalImage
+                        {
+                            ImagePath = "/images/optional/" + uniqueFileName,
+                            EventId = eventEntity.Id // Foreign key to Event
+                        };
+
+                        _context.OptionalImages.Add(newOptionalImage);
+                    }
+                }
+            }
+
+            // Update the event entity in the database
+            _context.Update(eventEntity);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        return View(model);
+    }
+
+    // POST: Delete
+    [HttpPost]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var eventEntity = await _context.Events.FindAsync(id);
+        if (eventEntity == null)
+        {
+            return NotFound();
+        }
+
+        // Remove associated optional images
+        var optionalImages = _context.OptionalImages.Where(i => i.EventId == id).ToList();
+        _context.OptionalImages.RemoveRange(optionalImages);
+
+        _context.Events.Remove(eventEntity);
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction(nameof(Index));
     }
 }

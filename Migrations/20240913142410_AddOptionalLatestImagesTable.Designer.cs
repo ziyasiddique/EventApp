@@ -3,6 +3,7 @@ using EventApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EventApp.Migrations
 {
     [DbContext(typeof(EventDbContext))]
-    partial class EventDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240913142410_AddOptionalLatestImagesTable")]
+    partial class AddOptionalLatestImagesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -34,6 +37,9 @@ namespace EventApp.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ImagePath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OptionalImagePaths")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
@@ -70,17 +76,12 @@ namespace EventApp.Migrations
             modelBuilder.Entity("EventApp.Models.OptionalImage", b =>
                 {
                     b.HasOne("EventApp.Models.Event", "Event")
-                        .WithMany("OptionalImages")
+                        .WithMany()
                         .HasForeignKey("EventId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Event");
-                });
-
-            modelBuilder.Entity("EventApp.Models.Event", b =>
-                {
-                    b.Navigation("OptionalImages");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,18 +1,26 @@
-﻿@model EventApp.Models.Event
+﻿@model EventApp.ViewModels.EventDetailsViewModel
 
-@{
-    ViewData["Title"] = "Event Details";
-}
-
-<h1>Event Details</h1>
+<h2>Event Details</h2>
 
 <div>
-    <h2>@Model.Title</h2>
-    <p>@Model.Description</p>
-    @if (!string.IsNullOrEmpty(Model.ImagePath))
+    <h3>@Model.Event.Title</h3>
+    <p>@Model.Event.Description</p>
+
+    @if (Model.Event.ImagePath != null)
     {
-        <img src="@Model.ImagePath" alt="Event Image" width="200" />
+        <div>
+            <img src="@(Model.Event.ImagePath)" alt="Main Event Image" style="max-width: 300px;" />
+        </div>
+    }
+
+    @if (Model.OptionalImages != null && Model.OptionalImages.Any())
+    {
+        <div>
+            <h4>Optional Images</h4>
+            @foreach (var image in Model.OptionalImages)
+            {
+                <img src="@(image.ImagePath)" alt="Optional Image" style="max-width: 200px;" />
+            }
+        </div>
     }
 </div>
-
-<a class="btn btn-primary" href="@Url.Action("Index")">Back to List</a>

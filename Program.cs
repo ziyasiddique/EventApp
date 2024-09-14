@@ -1,14 +1,17 @@
 using EventApp.Data;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();  // For logging to the console
+builder.Logging.AddDebug();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
 // Add DbContext with SQL Server
 builder.Services.AddDbContext<EventDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+       options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add session services
 builder.Services.AddSession(options =>
@@ -18,6 +21,12 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;  // Required for session to work without explicit consent
 });
 
+// Configure FormOptions to handle large file uploads (if necessary)
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = long.MaxValue; // Adjust as necessary
+    Console.WriteLine($"File size limit set to: {options.MultipartBodyLengthLimit}");
+});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
